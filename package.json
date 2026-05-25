@@ -1,0 +1,33 @@
+{
+  "name": "imageo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SPFx 1.23 Application Customizer that turns SharePoint page context into brand-styled images with Microsoft Foundry MAI-Image-2-efficient.",
+  "author": "Nello D'Andrea",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ferrarirosso/react-imageo.git"
+  },
+  "homepage": "https://github.com/ferrarirosso/react-imageo#readme",
+  "bugs": {
+    "url": "https://github.com/ferrarirosso/react-imageo/issues"
+  },
+  "keywords": [
+    "spfx",
+    "sharepoint",
+    "spfx-extension",
+    "application-customizer",
+    "azure-ai-foundry",
+    "mai-image-2",
+    "image-generation",
+    "azure-functions",
+    "easy-auth",
+    "managed-identity"
+  ],
+  "scripts": {
+    "deploy": "node -e \"if(process.env.npm_config_dry_run==='true'){console.error('Use \\\"npm run deploy:dry-run\\\" — npm consumes --dry-run before npx sees it.');process.exit(2)}\" && npx -y github:ferrarirosso/spfx-foundry-deploy deploy --config ./spfx/deploy.config.json",
+    "deploy:dry-run": "npx -y github:ferrarirosso/spfx-foundry-deploy deploy --config ./spfx/deploy.config.json --dry-run",
+    "teardown": "npx -y github:ferrarirosso/spfx-foundry-deploy teardown --config ./spfx/deploy.config.json"
+  }
+}

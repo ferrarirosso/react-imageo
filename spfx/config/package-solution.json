@@ -1,0 +1,52 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "imageo-client-side-solution",
+    "id": "9f7e2a10-ef11-4c8d-bb3a-61a3e2c8d901",
+    "version": "1.0.0.0",
+    "includeClientSideAssets": true,
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "webApiPermissionRequests": [],
+    "developer": {
+      "name": "imageo",
+      "websiteUrl": "",
+      "privacyUrl": "",
+      "termsOfUseUrl": "",
+      "mpnId": "Undefined-1.22.1"
+    },
+    "metadata": {
+      "shortDescription": {
+        "default": "imageo — on-page AI image generation for SharePoint"
+      },
+      "longDescription": {
+        "default": "Application Customizer that generates corporate-branded images on SharePoint modern pages via Azure AI Foundry MAI-Image-2-efficient."
+      },
+      "screenshotPaths": [],
+      "videoUrl": "",
+      "categories": []
+    },
+    "features": [
+      {
+        "title": "imageo Application Customizer",
+        "description": "Activates the imageo floating button on modern SharePoint pages.",
+        "id": "a8fcd1ef-aaaa-4b2c-9e21-1122334455aa",
+        "version": "1.0.0.0",
+        "componentIds": [
+          "a1b2c3d4-e5f6-7890-abcd-111111111111"
+        ],
+        "assets": {
+          "elementManifests": [
+            "elements.xml"
+          ],
+          "elementFiles": [
+            "ClientSideInstance.xml"
+          ]
+        }
+      }
+    ]
+  },
+  "paths": {
+    "zippedPackage": "solution/imageo.sppkg"
+  }
+}

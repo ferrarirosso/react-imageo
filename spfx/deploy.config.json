@@ -1,0 +1,34 @@
+{
+  "$schema": "https://raw.githubusercontent.com/ferrarirosso/spfx-foundry-deploy/main/deploy.config.schema.json",
+  "slug": "imageo",
+  "profile": "multi-model",
+  "namePrefix": "imageo-dev",
+  "location": "swedencentral",
+  "backendPath": "../backend",
+  "models": [
+    {
+      "name": "gpt-5-mini",
+      "deploymentName": "imageo-dev-gpt5mini",
+      "version": "2025-08-07",
+      "format": "OpenAI",
+      "skuName": "GlobalStandard",
+      "skuCapacity": 50,
+      "apiVersion": "2024-10-21",
+      "$role": "analyze"
+    },
+    {
+      "name": "MAI-Image-2e",
+      "deploymentName": "imageo-dev-mai2eff",
+      "version": "2026-04-09",
+      "format": "Microsoft",
+      "skuName": "GlobalStandard",
+      "skuCapacity": 1,
+      "apiVersion": "2026-04-01-preview",
+      "$role": "image"
+    }
+  ],
+  "requestLimits": {
+    "perMinute": 30,
+    "perDay": 1000
+  }
+}

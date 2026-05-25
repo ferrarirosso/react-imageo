@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ClientSideComponentInstance
+  Title="imageo Application Customizer"
+  Location="ClientSideExtension.ApplicationCustomizer"
+  ComponentId="a1b2c3d4-e5f6-7890-abcd-111111111111"
+  Properties="{}">
+</ClientSideComponentInstance>

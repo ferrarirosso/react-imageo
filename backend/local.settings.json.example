@@ -1,0 +1,24 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "AZURE_OPENAI_ENDPOINT": "https://<foundry>.cognitiveservices.azure.com/",
+    "AZURE_OPENAI_API_KEY": "<foundry-key-1>",
+    "AZURE_OPENAI_DEPLOYMENT_IMAGE": "imageo-dev-mai2eff",
+    "AZURE_OPENAI_DEPLOYMENT_ANALYZE": "imageo-dev-gpt5mini",
+    "AZURE_OPENAI_API_VERSION_IMAGE": "2026-04-01-preview",
+    "AZURE_OPENAI_API_VERSION_ANALYZE": "2024-10-21",
+    "TENANT_ID": "<tenant-id>",
+    "CLIENT_ID": "<aad-app-id>",
+    "CLIENT_SECRET": "<aad-app-secret>",
+    "IMAGE_MAX_N": "6",
+    "REQUIRE_AUTH": "false",
+    "ALLOW_DEV_BEARER_TOKENS": "true"
+  },
+  "Host": {
+    "CORS": "*",
+    "CORSCredentials": false,
+    "LocalHttpPort": 7071
+  }
+}

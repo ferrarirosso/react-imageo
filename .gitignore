@@ -1,0 +1,51 @@
+# Working/internal docs — research notes, upgrade reports, deploy runbooks,
+# talk material. Kept local; not published to the public repo.
+docs/
+
+# Deployment state
+.imageo-deploy.json
+.deploy-output.json
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Azure Functions
+backend/dist/
+backend/local.settings.json
+backend/.funcignore-debug
+
+# SPFx / Heft outputs
+spfx/lib/
+spfx/lib-commonjs/
+spfx/dist/
+spfx/temp/
+spfx/release/
+spfx/sharepoint/solution/
+spfx/.heft/
+spfx/jest-output/
+
+# IDE
+.vscode/*
+!.vscode/settings.json
+.idea/
+.DS_Store
+
+# Claude Code per-machine state
+.claude/settings.local.json
+
+# Logs
+*.log
+
+# Stray test file
+test.txt
+
+# Local azurite storage (Functions queue emulation)
+__azurite_db_*
+__blobstorage__
+__queuestorage__
+.azurite/
+
+# Claude Code local scheduling
+.claude/scheduled_tasks.lock
