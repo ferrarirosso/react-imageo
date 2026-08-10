@@ -1,8 +1,8 @@
 {
   "name": "imageo",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "SPFx 1.23 Application Customizer that turns SharePoint page context into brand-styled images with Microsoft Foundry MAI-Image-2-efficient.",
+  "description": "SPFx 1.23 Application Customizer that turns SharePoint page context into brand-styled images with Microsoft Foundry MAI-Image-2.5-Flash.",
   "author": "Nello D'Andrea",
   "license": "MIT",
   "repository": {
@@ -19,7 +19,7 @@
     "spfx-extension",
     "application-customizer",
     "azure-ai-foundry",
-    "mai-image-2",
+    "mai-image-2.5-flash",
     "image-generation",
     "azure-functions",
     "easy-auth",

@@ -17,13 +17,13 @@
       "$role": "analyze"
     },
     {
-      "name": "MAI-Image-2e",
-      "deploymentName": "imageo-dev-mai2eff",
-      "version": "2026-04-09",
+      "name": "MAI-Image-2.5-Flash",
+      "deploymentName": "imageo-dev-mai25flash",
+      "version": "2026-06-02",
       "format": "Microsoft",
       "skuName": "GlobalStandard",
-      "skuCapacity": 1,
-      "apiVersion": "2026-04-01-preview",
+      "skuCapacity": 2,
+      "apiVersion": "preview",
       "$role": "image"
     }
   ],

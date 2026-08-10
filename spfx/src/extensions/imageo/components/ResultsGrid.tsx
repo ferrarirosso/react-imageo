@@ -11,6 +11,8 @@ export interface ISlotState {
   previewUrl?: string;
   error?: string;
   prompt?: string;
+  // Carried through so saved-image metadata records the generating model.
+  model?: string;
   restoredFromCreatedAt?: number;
 }
 

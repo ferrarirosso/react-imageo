@@ -1,4 +1,5 @@
-export type ImageSize = '1024x1024' | '1792x1024' | '1024x1792';
+// Mirrors backend/src/types/contracts.ts.
+export type ImageSize = '1024x1024' | '1360x768' | '768x1360';
 
 export interface IGenerateRequest {
   prompt: string;
