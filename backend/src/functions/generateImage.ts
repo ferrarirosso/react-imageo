@@ -7,6 +7,7 @@ import {
   ValidationError,
 } from '../middleware/validation';
 import { generateImages } from '../services/imageGen.service';
+import { ImageSize } from '../types/contracts';
 
 export async function generateImage(
   request: HttpRequest,
@@ -29,7 +30,7 @@ export async function generateImage(
       parsed.prompt,
       parsed.brandSlang,
       parsed.n as number,
-      parsed.size as '1024x1024' | '1792x1024' | '1024x1792'
+      parsed.size as ImageSize
     );
 
     if (images.length === 0) {

@@ -4,6 +4,32 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] — 2026-08-09
+
+Migration off a retiring model. Microsoft retires **MAI-Image-2e** on
+**2026-08-15**; its documented replacement is **MAI-Image-2.5-Flash**.
+
+### Changed
+- Image generation moves from MAI-Image-2-efficient to **MAI-Image-2.5-Flash**
+  (`2026-06-02`). The request and response shapes are unchanged, so this is a
+  deployment swap rather than a rewrite.
+- `skuCapacity` for the image deployment raised 1 → 2, the maximum a default
+  subscription is granted for this model. Capacity equals requests per minute.
+- `IMAGE_MAX_N` default lowered 6 → 2 to match that ceiling. The previous default
+  guaranteed `429`s on the surplus of any multi-image request.
+- The reported model name is overridable via `IMAGE_MODEL_LABEL` and carried
+  through to saved-image metadata, rather than restated as a constant in the panel.
+- `AZURE_OPENAI_API_VERSION_IMAGE` is now read by the backend. It was written as
+  an app setting but ignored, while the code hardcoded `api-version=preview`;
+  the setting is honoured and may be set empty to omit the parameter entirely.
+
+### Fixed
+- Removed the `1792x1024` and `1024x1792` sizes — both exceed the 1,056,768 px
+  ceiling MAI image models enforce and were rejected with `400`. Replaced with
+  `1360x768` and `768x1360`. The panel only ever requested `1024x1024`.
+- Dropped the `n` field from the upstream request body. The API accepts it and
+  still returns exactly one image; N images has always required N requests.
+
 ## [0.1.0] — 2026-05-25
 
 First public release.

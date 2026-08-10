@@ -16,7 +16,7 @@ export class ValidationError extends Error {
   }
 }
 
-const ALLOWED_SIZES: ImageSize[] = ['1024x1024', '1792x1024', '1024x1792'];
+const ALLOWED_SIZES: ImageSize[] = ['1024x1024', '1360x768', '768x1360'];
 
 export function validateGenerateRequest(body: unknown): GenerateImageRequest {
   if (!body || typeof body !== 'object') {
@@ -44,7 +44,9 @@ export function validateGenerateRequest(body: unknown): GenerateImageRequest {
     }
     n = b.n;
   }
-  const maxN = Number(process.env.IMAGE_MAX_N || 6);
+  // One upstream request per image; the deployment allows skuCapacity requests
+  // per minute (default 2). Above that, the surplus 429s.
+  const maxN = Number(process.env.IMAGE_MAX_N || 2);
   if (n < 1 || n > maxN) {
     throw new ValidationError(`n must be between 1 and ${maxN}`);
   }

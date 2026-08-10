@@ -295,7 +295,7 @@ export const Panel: React.FC<IPanelProps> = ({ open, onDismiss, ctx, endpoints }
       if (!first) throw new BackendError('No image returned', 502, 'empty_response');
       const blob = b64ToBlob(first.b64);
       const previewUrl = URL.createObjectURL(blob);
-      setSlots([{ ...slot, status: 'ok', b64: first.b64, previewUrl, prompt: state.prompt }]);
+      setSlots([{ ...slot, status: 'ok', b64: first.b64, previewUrl, prompt: state.prompt, model: first.model }]);
       pushToast({ kind: 'success', message: strings.ToastGenerated.replace('{0}', '1') });
       if (pageIdForPersist) {
         saveLastGeneration(pageIdForPersist, userLogin, {
@@ -333,7 +333,7 @@ export const Panel: React.FC<IPanelProps> = ({ open, onDismiss, ctx, endpoints }
       const first = res.images?.[0];
       if (!first) throw new BackendError('No image returned', 502);
       const previewUrl = b64ToObjectUrl(first.b64);
-      setSlots((prev) => prev.map((s) => s.id === slot.id ? { ...s, status: 'ok', b64: first.b64, previewUrl } : s));
+      setSlots((prev) => prev.map((s) => s.id === slot.id ? { ...s, status: 'ok', b64: first.b64, previewUrl, model: first.model } : s));
     } catch (err) {
       const info = describeGenerateError(err as BackendError);
       setSlots((prev) => prev.map((s) => s.id === slot.id ? { ...s, status: 'error', error: info.title } : s));
@@ -381,7 +381,7 @@ export const Panel: React.FC<IPanelProps> = ({ open, onDismiss, ctx, endpoints }
     try {
       const up = await uploader.uploadImage(slot.b64, state.prompt, {
         prompt: state.prompt,
-        model: 'mai-image-2-efficient',
+        model: slot.model || 'mai-image-2.5-flash',
       });
       const webAbs = ctx.pageContext.web.absoluteUrl.replace(/\/+$/, '');
       const folderPath = `${ctx.pageContext.web.serverRelativeUrl}/SiteAssets/AIImages`;
@@ -577,7 +577,7 @@ export const Panel: React.FC<IPanelProps> = ({ open, onDismiss, ctx, endpoints }
           styles={{ root: { paddingTop: 4, paddingBottom: 8 } }}
         >
           <Text variant="small" styles={{ root: { color: '#a19f9d' } }}>
-            Powered by <strong>MAI-Image-2 efficient</strong> on Microsoft Foundry
+            Powered by <strong>MAI-Image-2.5-Flash</strong> on Microsoft Foundry
           </Text>
           <a
             href={strings.FooterLinkHref}

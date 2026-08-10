@@ -1,7 +1,7 @@
 {
   "name": "imageo-backend",
-  "version": "0.1.0",
-  "description": "Azure Functions backend for imageo — MAI-Image-2-efficient image generation + GPT-5 mini page analysis",
+  "version": "0.2.0",
+  "description": "Azure Functions backend for imageo — MAI-Image-2.5-Flash image generation + GPT-5 mini page analysis",
   "main": "dist/src/index.js",
   "scripts": {
     "build": "tsc",

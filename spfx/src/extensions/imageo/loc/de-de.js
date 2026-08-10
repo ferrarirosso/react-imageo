@@ -3,8 +3,8 @@ define([], function() {
     "Title": "imageo",
     "FabLabel": "Bilder mit imageo generieren",
     "PanelTitle": "imageo — seitenbewusster Bildgenerator",
-    "PanelSubtitle": "Open-Source SPFx-Showcase für Microsoft Foundry MAI-Image-2 efficient",
-    "FooterHtml": "Mit <strong>MAI-Image-2 efficient</strong> auf Microsoft Foundry · Open Source auf GitHub",
+    "PanelSubtitle": "Open-Source SPFx-Showcase für Microsoft Foundry MAI-Image-2.5-Flash",
+    "FooterHtml": "Mit <strong>MAI-Image-2.5-Flash</strong> auf Microsoft Foundry · Open Source auf GitHub",
     "FooterLinkLabel": "GitHub",
     "FooterLinkHref": "https://github.com/ferrarirosso/react-imageo",
     "GenerateButton": "Generieren",
@@ -63,7 +63,7 @@ define([], function() {
 
     "FabSubtitle": "Seitenbewusster Bildgenerator",
     "PreviewBadge": "Vorschau",
-    "PanelSubtitleFull": "Seitenbewusster Bildgenerator · MAI-Image-2 efficient auf Microsoft Foundry",
+    "PanelSubtitleFull": "Seitenbewusster Bildgenerator · MAI-Image-2.5-Flash auf Microsoft Foundry",
 
     "ToastRestored": "Ihr zuletzt für diese Seite generiertes Bild wurde wiederhergestellt.",
     "ToastExtractFailed": "Extraktion fehlgeschlagen: {0}",

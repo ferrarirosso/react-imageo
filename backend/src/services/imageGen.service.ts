@@ -1,11 +1,17 @@
 /**
  * Image generation via Microsoft Foundry's MAI Image API.
  *
- * Endpoint shape (confirmed from Foundry playground "View code"):
- *   POST https://{resource}.services.ai.azure.com/mai/v1/images/generations?api-version=preview
+ * Endpoint shape (verified against MAI-Image-2.5-Flash, 2026-08):
+ *   POST https://{resource}.services.ai.azure.com/mai/v1/images/generations
  *   Headers: api-key: <foundry-key>, Content-Type: application/json
- *   Body:    { prompt, width, height, n, model }       ← width/height, not size
- *   Returns: { data: [{ b64_json, revised_prompt? }] }
+ *   Body:    { prompt, width, height, model }          ← width/height, not size
+ *   Returns: { created, model, size, usage, data: [{ b64_json }] }
+ *
+ * api-version is optional; sent from AZURE_OPENAI_API_VERSION_IMAGE, empty to omit.
+ *
+ * `n` is NOT supported — the service accepts it and still returns one image, so
+ * N images means N parallel requests, each costing one unit of the deployment's
+ * per-minute budget (= skuCapacity, capped at 2 by quota).
  *
  * Auth:
  *   - Production: Managed Identity → bearer for
@@ -17,7 +23,9 @@
 import { DefaultAzureCredential, getBearerTokenProvider } from '@azure/identity';
 import { GeneratedImage, ImageSize, PartialError } from '../types/contracts';
 
-const MODEL_LABEL = 'mai-image-2-efficient';
+// Don't swap this for the response's `model` field — that echoes the deployment
+// name, not the model. Override via IMAGE_MODEL_LABEL on a different MAI model.
+const MODEL_LABEL = process.env.IMAGE_MODEL_LABEL || 'mai-image-2.5-flash';
 const AZURE_OPENAI_SCOPE = 'https://cognitiveservices.azure.com/.default';
 
 // Opt-in verbose logging. Off by default so user-derived strings (e.g. the
@@ -83,15 +91,25 @@ async function urlToB64(url: string): Promise<string> {
 }
 
 interface MaiImageChoice { b64_json?: string; url?: string; revised_prompt?: string; }
-interface MaiImageResponse { data?: MaiImageChoice[]; }
+interface MaiImageResponse { data?: MaiImageChoice[]; model?: string; size?: string; }
+
+/**
+ * Build the generations URL, appending api-version only when configured.
+ * Defaults to `preview`; set AZURE_OPENAI_API_VERSION_IMAGE empty to omit.
+ */
+function generationsUrl(endpoint: string): string {
+  const base = `${endpoint}/mai/v1/images/generations`;
+  const apiVersion = process.env.AZURE_OPENAI_API_VERSION_IMAGE ?? 'preview';
+  return apiVersion ? `${base}?api-version=${encodeURIComponent(apiVersion)}` : base;
+}
 
 async function generateOne(prompt: string, size: ImageSize): Promise<GeneratedImage> {
   const endpoint = getMaiEndpoint();
   const deployment = getDeployment();
   const { width, height } = sizeToDims(size);
-  const url = `${endpoint}/mai/v1/images/generations?api-version=preview`;
+  const url = generationsUrl(endpoint);
   const headers = { 'Content-Type': 'application/json', ...(await authHeaders()) };
-  const body = JSON.stringify({ prompt, width, height, n: 1, model: deployment });
+  const body = JSON.stringify({ prompt, width, height, model: deployment });
 
   const t0 = Date.now();
   const res = await fetch(url, { method: 'POST', headers, body });

@@ -3,7 +3,7 @@
   "solution": {
     "name": "imageo-client-side-solution",
     "id": "9f7e2a10-ef11-4c8d-bb3a-61a3e2c8d901",
-    "version": "1.0.0.0",
+    "version": "1.1.0.0",
     "includeClientSideAssets": true,
     "skipFeatureDeployment": true,
     "isDomainIsolated": false,
@@ -20,7 +20,7 @@
         "default": "imageo — on-page AI image generation for SharePoint"
       },
       "longDescription": {
-        "default": "Application Customizer that generates corporate-branded images on SharePoint modern pages via Azure AI Foundry MAI-Image-2-efficient."
+        "default": "Application Customizer that generates corporate-branded images on SharePoint modern pages via Microsoft Foundry MAI-Image-2.5-Flash."
       },
       "screenshotPaths": [],
       "videoUrl": "",

@@ -1,7 +1,7 @@
 # imageo
 
 A SharePoint SPFx 1.23 Application Customizer that turns the content of a modern
-page into brand-styled images, using **Microsoft Foundry MAI-Image-2-efficient**
+page into brand-styled images, using **Microsoft Foundry MAI-Image-2.5-Flash**
 for generation and **GPT-5 mini** for page analysis.
 
 A publisher opens a modern page, clicks the floating launcher, and the panel reads
@@ -17,7 +17,8 @@ web part. imageo never modifies the page itself.
 ## Architecture
 
 - **`backend/`** — Azure Functions v4 (Node 22, TypeScript). Three HTTP endpoints:
-  `/api/generate-image` (MAI-Image-2-efficient, parallel N), `/api/analyze-page`
+  `/api/generate-image` (MAI-Image-2.5-Flash, one upstream request per image),
+  `/api/analyze-page`
   and `/api/distill-scope` (GPT-5 mini, JSON).
 - **`spfx/`** — SPFx 1.23 (Heft toolchain) Application Customizer. A floating
   launcher in the bottom placeholder opens a Fluent UI panel. Page content is
@@ -35,7 +36,7 @@ Foundry account, the Function proxy, Easy Auth, managed identity + roles, storag
 App Insights, and hardening (see its
 [README](https://github.com/ferrarirosso/spfx-foundry-deploy)). imageo's only
 addition over a single-model deploy is its `spfx/deploy.config.json`, which declares
-**two model deployments**: MAI-Image-2-efficient (image) and GPT-5 mini (analysis).
+**two model deployments**: MAI-Image-2.5-Flash (image) and GPT-5 mini (analysis).
 
 ## Quick start
 
@@ -90,8 +91,19 @@ text), and per-section + aggregate request-size caps bound each analysis call.
 - Node 22 (`>=22.14.0 <23`)
 - Azure CLI (`az`), signed in to the target tenant
 - Azure Functions Core Tools v4 (`func`)
-- Capacity for MAI-Image-2-efficient and GPT-5 mini in the chosen region
-  (defaults to Sweden Central)
+- Quota for MAI-Image-2.5-Flash and GPT-5 mini in the chosen region
+  (defaults to Sweden Central) — see *Image throughput* below
+
+## Image throughput
+
+MAI image deployments allow **one request per minute per unit of `skuCapacity`**,
+and a default subscription is granted **2 units** of MAI-Image-2.5-Flash. The API
+returns one image per call, so *N* images means *N* concurrent requests —
+`IMAGE_MAX_N` caps a single call at 2 to match. Raise both together after a
+[quota increase](https://aka.ms/oai/stuquotarequest); the surplus otherwise
+returns `429`, which the panel shows as a rate-limit toast.
+
+Supported sizes are `1024x1024`, `1360x768` and `768x1360`.
 
 ## Configuration
 
