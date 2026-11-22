@@ -47,8 +47,9 @@ export const Fab: React.FC<IFabProps> = ({ ctx, endpoints }) => {
       <div
         style={{
           position: 'fixed',
-          bottom: 24,
-          right: 24,
+          // Leave the bottom row available for SharePoint's Copilot launcher.
+          bottom: 'calc(104px + env(safe-area-inset-bottom, 0px))',
+          right: 'calc(clamp(12px, 4vw, 24px) + env(safe-area-inset-right, 0px))',
           zIndex: 10000,
         }}
       >
@@ -61,7 +62,7 @@ export const Fab: React.FC<IFabProps> = ({ ctx, endpoints }) => {
             onMouseLeave={() => setHover(false)}
             style={btn}
           >
-            <ImageoMark size={40} animated={hover} />
+            <ImageoMark size={40} />
             <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15, alignItems: 'flex-start' }}>
               <ImageoWordmark size={13} />
               <span style={{ fontSize: 10, fontWeight: 500, color: accent.fg, opacity: 0.7 }}>

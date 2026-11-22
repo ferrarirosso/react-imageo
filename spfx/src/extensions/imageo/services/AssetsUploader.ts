@@ -2,12 +2,13 @@ import { spfi, SPFx, SPFI } from '@pnp/sp';
 import '@pnp/sp/webs';
 import '@pnp/sp/files';
 import '@pnp/sp/folders';
+import type { IFolder } from '@pnp/sp/folders/types';
 import '@pnp/sp/lists';
 import '@pnp/sp/items';
 import { ApplicationCustomizerContext } from '@microsoft/sp-application-base';
 import { logger } from '../utils/logger';
 
-const ASSETS_FOLDER = 'SiteAssets/AIImages';
+const IMAGE_FOLDER = 'AIImages';
 
 function base64ToBlob(b64: string, contentType = 'image/png'): Blob {
   const binary = atob(b64);
@@ -34,27 +35,41 @@ function buildFileName(hint: string): string {
 export interface IUploadedImage {
   serverRelativeUrl: string;
   fileName: string;
+  libraryUrl: string;
 }
 
 /**
- * Writes generated images to the site's image library (SiteAssets/AIImages).
+ * Writes generated images to the AIImages folder in the web's Site Assets library.
  * imageo does NOT modify pages — no DOM manipulation, no canvas/CanvasContent1
  * writes. Publishers place the saved image themselves via the standard Image
  * web part. This is the only thing imageo persists to SharePoint.
  */
 export class AssetsUploader {
   private readonly sp: SPFI;
+  private readonly webUrl: string;
 
   public constructor(ctx: ApplicationCustomizerContext) {
     this.sp = spfi().using(SPFx(ctx));
+    this.webUrl = ctx.pageContext.web.absoluteUrl;
   }
 
-  public async ensureAssetsFolder(): Promise<void> {
+  private async ensureAssetsFolder(folder: IFolder, parent: IFolder, folderPath: string): Promise<void> {
     try {
-      await this.sp.web.getFolderByServerRelativePath(ASSETS_FOLDER)();
-    } catch {
-      await this.sp.web.folders.addUsingPath(ASSETS_FOLDER);
-      logger.log(`Created folder: ${ASSETS_FOLDER}`);
+      await folder.select('UniqueId')();
+      return;
+    } catch (err) {
+      if ((err as { status?: number })?.status !== 404) throw err;
+    }
+    try {
+      await parent.folders.addUsingPath(folderPath);
+    } catch (creationError) {
+      // Another tab can create the same folder after the first lookup.
+      // Confirm it exists before proceeding with the user's own upload.
+      try {
+        await folder.select('UniqueId')();
+      } catch {
+        throw creationError;
+      }
     }
   }
 
@@ -63,13 +78,19 @@ export class AssetsUploader {
     fileNameHint: string,
     metadata: { prompt?: string; model?: string }
   ): Promise<IUploadedImage> {
-    await this.ensureAssetsFolder();
+    const assets = await this.sp.web.lists.ensureSiteAssetsLibrary();
+    const library = await assets.select('DefaultViewUrl', 'RootFolder/ServerRelativePath').expand('RootFolder')();
+    const folderPath = library.RootFolder.ServerRelativePath.DecodedUrl.replace(/\/$/, '') + '/' + IMAGE_FOLDER;
+    const folder = this.sp.web.getFolderByServerRelativePath(folderPath);
+    await this.ensureAssetsFolder(folder, assets.rootFolder, folderPath);
+    const view = new URL(library.DefaultViewUrl, this.webUrl);
     const blob = base64ToBlob(b64, 'image/png');
     const fileName = buildFileName(fileNameHint);
 
-    const folder = this.sp.web.getFolderByServerRelativePath(ASSETS_FOLDER);
-    const result = await folder.files.addUsingPath(fileName, blob, { Overwrite: true });
-    const serverRelativeUrl = result.ServerRelativeUrl;
+    await folder.files.addUsingPath(fileName, blob, { Overwrite: false });
+    const serverRelativeUrl = folderPath + '/' + fileName;
+    view.searchParams.set('id', serverRelativeUrl);
+    view.searchParams.set('parent', folderPath);
 
     try {
       const item = this.sp.web.getFileByServerRelativePath(serverRelativeUrl).getItem();
@@ -80,6 +101,6 @@ export class AssetsUploader {
       logger.warn('Could not set file metadata', err);
     }
 
-    return { serverRelativeUrl, fileName };
+    return { serverRelativeUrl, fileName, libraryUrl: view.href };
   }
 }

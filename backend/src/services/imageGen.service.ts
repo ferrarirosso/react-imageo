@@ -1,35 +1,27 @@
 /**
- * Image generation via Microsoft Foundry's MAI Image API.
+ * Image generation and editing via Microsoft Foundry's MAI Image API.
  *
- * Endpoint shape (verified against MAI-Image-2.5-Flash, 2026-08):
  *   POST https://{resource}.services.ai.azure.com/mai/v1/images/generations
- *   Headers: api-key: <foundry-key>, Content-Type: application/json
- *   Body:    { prompt, width, height, model }          ← width/height, not size
- *   Returns: { created, model, size, usage, data: [{ b64_json }] }
+ *   Body: { prompt, width, height, model: deploymentName }
+ *   Result: data[0].b64_json contains a base64-encoded PNG.
  *
  * api-version is optional; sent from AZURE_OPENAI_API_VERSION_IMAGE, empty to omit.
  *
- * `n` is NOT supported — the service accepts it and still returns one image, so
- * N images means N parallel requests, each costing one unit of the deployment's
- * per-minute budget (= skuCapacity, capped at 2 by quota).
+ * The backend sends one upstream request per image.
  *
  * Auth:
  *   - Production: Managed Identity → bearer for
  *     https://cognitiveservices.azure.com/.default, sent as Authorization.
  *     The MAI endpoint accepts both api-key and AAD bearer.
- *   - Local dev: api-key from AZURE_OPENAI_API_KEY (written by setup-local).
+ *   - Local dev: api-key from AZURE_OPENAI_API_KEY.
  */
 
 import { DefaultAzureCredential, getBearerTokenProvider } from '@azure/identity';
-import { GeneratedImage, ImageSize, PartialError } from '../types/contracts';
+import { GeneratedImage, ImageServiceResponse, ImageSize, PartialError } from '../types/contracts';
 
-// Don't swap this for the response's `model` field — that echoes the deployment
-// name, not the model. Override via IMAGE_MODEL_LABEL on a different MAI model.
-const MODEL_LABEL = process.env.IMAGE_MODEL_LABEL || 'mai-image-2.5-flash';
 const AZURE_OPENAI_SCOPE = 'https://cognitiveservices.azure.com/.default';
 
-// Opt-in verbose logging. Off by default so user-derived strings (e.g. the
-// color tokens the sanitizer rewrites) never reach App Insights unless asked.
+// Local opt-in diagnostic for prompt color normalization.
 const DEBUG = /^(1|true|yes|on)$/i.test(process.env.IMAGEO_DEBUG || '');
 
 function isRunningInAzure(): boolean {
@@ -78,7 +70,7 @@ async function authHeaders(): Promise<Record<string, string>> {
   }
   const key = process.env.AZURE_OPENAI_API_KEY;
   if (!key) {
-    throw new Error('AZURE_OPENAI_API_KEY required for local dev (run `npm run setup` at repo root).');
+    throw new Error('Set AZURE_OPENAI_API_KEY in backend/local.settings.json for local development.');
   }
   return { 'api-key': key };
 }
@@ -94,39 +86,60 @@ interface MaiImageChoice { b64_json?: string; url?: string; revised_prompt?: str
 interface MaiImageResponse { data?: MaiImageChoice[]; model?: string; size?: string; }
 
 /**
- * Build the generations URL, appending api-version only when configured.
+ * Append api-version only when configured.
  * Defaults to `preview`; set AZURE_OPENAI_API_VERSION_IMAGE empty to omit.
  */
-function generationsUrl(endpoint: string): string {
-  const base = `${endpoint}/mai/v1/images/generations`;
+function imageUrl(operation: 'generations' | 'edits'): string {
+  const base = `${getMaiEndpoint()}/mai/v1/images/${operation}`;
   const apiVersion = process.env.AZURE_OPENAI_API_VERSION_IMAGE ?? 'preview';
   return apiVersion ? `${base}?api-version=${encodeURIComponent(apiVersion)}` : base;
 }
 
-async function generateOne(prompt: string, size: ImageSize): Promise<GeneratedImage> {
-  const endpoint = getMaiEndpoint();
+async function generateOne(prompt: string, size: ImageSize, transparentBackground: boolean): Promise<GeneratedImage> {
   const deployment = getDeployment();
   const { width, height } = sizeToDims(size);
-  const url = generationsUrl(endpoint);
-  const headers = { 'Content-Type': 'application/json', ...(await authHeaders()) };
-  const body = JSON.stringify({ prompt, width, height, model: deployment });
+  const body = JSON.stringify({
+    prompt, width, height, model: deployment,
+    ...(transparentBackground ? { background: 'transparent' } : {}),
+  });
+  return requestImage('generations', body, deployment);
+}
 
+export function refineImage(png: Buffer, instruction: string, guide?: Buffer): Promise<GeneratedImage> {
+  const deployment = getDeployment();
+  const form = new FormData();
+  form.set('model', deployment);
+  const prompt = guide
+    ? 'Edit the first image. The second image shows the selection with a magenta overlay on the same picture. ' +
+      'Keep the original framing and alignment. Leave all selection markings out of the result.\n' + instruction
+    : instruction;
+  form.set('prompt', prompt);
+  form.append('image', new Blob([png], { type: 'image/png' }), 'source.png');
+  if (guide) form.append('image', new Blob([guide], { type: 'image/png' }), 'selection-guide.png');
+  return requestImage('edits', form, deployment);
+}
+
+async function requestImage(
+  operation: 'generations' | 'edits', body: string | FormData, deployment: string
+): Promise<GeneratedImage> {
+  const url = imageUrl(operation);
+  const headers = await authHeaders();
+  if (typeof body === 'string') headers['Content-Type'] = 'application/json';
   const t0 = Date.now();
   const res = await fetch(url, { method: 'POST', headers, body });
   const dt = Date.now() - t0;
   const raw = await res.text();
 
   if (!res.ok) {
-    console.error(`[imageGen] ${dt}ms ${res.status} at ${url}: ${raw.slice(0, 500)}`);
-    const err = new Error(`Image generation failed (${res.status}): ${raw.slice(0, 500)}`);
-    (err as Error & { status?: number; raw?: string }).status = res.status;
-    (err as Error & { raw?: string }).raw = raw;
-    throw err;
+    const failure = classifyImageFailure(res, raw);
+    console.error(`[imageGen] ${operation} ${dt}ms HTTP ${res.status} category=${failure.code}` +
+      (failure.serviceResponse?.requestId ? ` requestId=${failure.serviceResponse.requestId}` : ''));
+    throw failure;
   }
 
   let parsed: MaiImageResponse;
   try { parsed = JSON.parse(raw) as MaiImageResponse; } catch {
-    throw new Error(`Image API returned non-JSON: ${raw.slice(0, 200)}`);
+    throw new Error('Image API returned an invalid JSON response');
   }
 
   const first = parsed.data?.[0];
@@ -139,28 +152,122 @@ async function generateOne(prompt: string, size: ImageSize): Promise<GeneratedIm
   }
   if (!b64) throw new Error('Image API returned neither b64_json nor url');
 
-  console.log(`[imageGen] ← ${dt}ms ${width}x${height} ${(b64.length * 3 / 4 / 1024).toFixed(0)}KB`);
-  return { b64, revisedPrompt: first.revised_prompt, model: MODEL_LABEL };
+  console.log(`[imageGen] ← ${operation} ${dt}ms ${(b64.length * 3 / 4 / 1024).toFixed(0)}KB`);
+  return { b64, revisedPrompt: first.revised_prompt, model: process.env.IMAGE_MODEL_LABEL || deployment };
 }
 
-function toToastMessage(err: unknown): { message: string; code?: string } {
-  if (!err || typeof err !== 'object') return { message: 'Unknown error' };
-  const e = err as { status?: number; code?: string; message?: string; raw?: string };
-  const raw = e.raw || '';
+const IMAGE_FAILURES = {
+  output_content_filtered: [400, 'Foundry blocked the generated image. No image was returned.'],
+  content_policy_violation: [400, 'The image service blocked this request under its safety policies. Rephrase the prompt and try again.'],
+  unsupported_background: [400, 'Foundry rejected the background setting. Turn off Transparent background and try again.'],
+  invalid_image_size: [400, 'Foundry rejected the requested image size. Choose another size and try again.'],
+  invalid_prompt: [400, 'Foundry rejected the prompt. Shorten or rephrase it and try again.'],
+  upstream_bad_request: [400, 'Foundry rejected the image request (HTTP 400). Contact support if the issue persists.'],
+  rate_limit_exceeded: [429, 'Rate limited. Wait a moment before trying again.'],
+  auth_error: [502, 'Foundry could not authorize the image service. Contact your administrator.'],
+  server_error: [502, 'The image service is temporarily unavailable. Retry in a moment.'],
+  image_service_error: [502, 'The image service could not complete the request. Contact support if the issue persists.'],
+} as const;
 
-  if (e.status === 429 || /rate[_ ]limit/i.test(raw)) {
-    return { message: 'Rate limited — please try fewer images or wait a moment.', code: 'rate_limit_exceeded' };
+type ImageFailureCode = keyof typeof IMAGE_FAILURES;
+
+class ImageServiceError extends Error {
+  constructor(readonly code: ImageFailureCode, readonly serviceResponse?: ImageServiceResponse) {
+    const requestId = serviceResponse?.requestId;
+    super(IMAGE_FAILURES[code][1] + (requestId ? ` Request ID: ${requestId}.` : ''));
   }
-  if (/content[_ ]policy/i.test(raw) || e.code === 'content_policy_violation') {
-    return { message: 'The prompt was blocked by content policy. Rephrase and try again.', code: 'content_policy_violation' };
+}
+
+// Classify the cause for the user independently of the fields safe to disclose.
+function classifyBadRequest(payload: unknown): ImageFailureCode {
+  const nodes: unknown[] = [payload];
+  const codes: string[] = [];
+  const messages: string[] = [];
+  const fields: string[] = [];
+  for (let i = 0; i < nodes.length && i < 16; i++) {
+    const node = nodes[i];
+    if (typeof node === 'string') { messages.push(node.slice(0, 2048)); continue; }
+    if (!node || typeof node !== 'object') continue;
+    const value = node as Record<string, unknown>;
+    for (const code of [value.code, value.type]) {
+      if (typeof code === 'string') codes.push(code.slice(0, 80).replace(/[_ -]/g, '').toLowerCase());
+    }
+    for (const field of [value.param, value.target]) {
+      if (typeof field === 'string') fields.push(field.toLowerCase());
+    }
+    if (typeof value.message === 'string') messages.push(value.message.slice(0, 2048));
+    for (const inner of [value.error, value.innererror, value.innerError, value.detail, value.details]) {
+      if (Array.isArray(inner)) nodes.push(...inner.slice(0, 5));
+      else if (inner) nodes.push(inner);
+    }
   }
-  if (e.status === 401 || e.status === 403) {
-    return { message: 'Not authorized to generate images. Check backend auth config.', code: 'auth_error' };
+  const hasCode = (...known: string[]): boolean => codes.some(code => known.includes(code));
+  if (hasCode('ratelimitexceeded', 'toomanyrequests')) return 'rate_limit_exceeded';
+  if (hasCode('contentsafetyviolation', 'contentpolicyviolation', 'contentfilter', 'responsibleaipolicyviolation') ||
+      messages.some(m => /content[_-](?:safety|policy)[_-]violation|(?:blocked|rejected|violat\w*)[^.\n]{0,100}\bsafety polic(?:y|ies)\b|\bsafety polic(?:y|ies)\b[^.\n]{0,60}\b(?:blocked|violated)\b/i.test(m))) {
+    if (messages.some(m => /\b(?:output content|generated (?:image|content))\s+(?:was\s+)?(?:violated|blocked|filtered)\b/i.test(m))) {
+      return 'output_content_filtered';
+    }
+    return 'content_policy_violation';
   }
-  if (e.status && e.status >= 500) {
-    return { message: 'Image service temporarily unavailable. Retry in a moment.', code: 'server_error' };
+  if (fields.some(f => ['background', 'transparent_background', 'transparentbackground'].includes(f)) ||
+      hasCode('unsupportedbackground') ||
+      messages.some(m => /(?:unknown|unrecognized|unsupported|not supported) (?:parameter|setting|value)?[: ='"\s]*background\b|\bbackground\b[^.\n]{0,40}\b(?:not supported|unsupported)\b/i.test(m))) {
+    return 'unsupported_background';
   }
-  return { message: e.message || 'Unknown error', code: e.code };
+  if (fields.some(f => ['width', 'height', 'size', 'dimensions'].includes(f)) ||
+      hasCode('invalidimagesize', 'unsupportedimagesize', 'invaliddimensions')) return 'invalid_image_size';
+  if (hasCode('invalidprompt', 'prompttoolong')) return 'invalid_prompt';
+  return 'upstream_bad_request';
+}
+
+const PUBLIC_PROVIDER_CODES = new Set([
+  'content_safety_violation', 'content_policy_violation', 'content_filter', 'ResponsibleAIPolicyViolation',
+  'BadRequest', 'invalid_request_error', 'unsupported_parameter', 'rate_limit_exceeded', 'TooManyRequests',
+]);
+const OUTPUT_FILTER_MESSAGE = 'Output content violated safety policies. Violation categories: disallowed.';
+
+function classifyImageFailure(res: Response, raw: string): ImageServiceError {
+  // Foundry gateway headers normally contain GUIDs. Discard arbitrary header values.
+  const idPattern = /^(?:[\da-f]{32}|[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12})$/i;
+  const requestId = ['apim-request-id', 'x-ms-request-id', 'x-request-id', 'request-id']
+    .map(name => res.headers.get(name)).find((id): id is string => !!id && idPattern.test(id));
+  const serviceResponse: ImageServiceResponse = { httpStatus: res.status };
+  if (requestId) serviceResponse.requestId = requestId;
+
+  let payload: unknown;
+  if (raw.length <= 65_536) {
+    try { payload = JSON.parse(raw); } catch { payload = raw; }
+  }
+  // Only publish exact values from the structured error. Free-form provider
+  // messages and nested details can contain prompts, deployment names or URLs.
+  if (payload && typeof payload === 'object' && 'error' in payload) {
+    const error = payload.error;
+    if (error && typeof error === 'object' && 'code' in error &&
+        typeof error.code === 'string' && PUBLIC_PROVIDER_CODES.has(error.code)) {
+      serviceResponse.providerCode = error.code;
+      if (error.code === 'content_safety_violation' && 'message' in error && error.message === OUTPUT_FILTER_MESSAGE) {
+        serviceResponse.message = OUTPUT_FILTER_MESSAGE;
+        serviceResponse.stage = 'output';
+        serviceResponse.category = 'disallowed';
+      }
+    }
+  }
+
+  let code: ImageFailureCode = 'image_service_error';
+  if (res.status === 400) code = classifyBadRequest(payload);
+  else if (res.status === 429) code = 'rate_limit_exceeded';
+  else if (res.status === 401 || res.status === 403) code = 'auth_error';
+  else if (res.status >= 500) code = 'server_error';
+  return new ImageServiceError(code, serviceResponse);
+}
+
+export function toToastMessage(err: unknown) {
+  const failure = err instanceof ImageServiceError ? err : new ImageServiceError('image_service_error');
+  return {
+    message: failure.message, code: failure.code, status: IMAGE_FAILURES[failure.code][0],
+    ...(failure.serviceResponse && { serviceResponse: failure.serviceResponse }),
+  };
 }
 
 function hexToColorName(hex: string): string {
@@ -215,7 +322,7 @@ export function sanitizeForImageModel(text: string): string {
   let out = text;
   out = out.replace(/#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b/g, (match) => {
     const name = hexToColorName(match);
-    if (DEBUG) console.log(`[sanitize] "${match}" → "${name}"`);
+    if (DEBUG) console.log('[sanitize] Normalized a hex color');
     return name;
   });
   out = out.replace(/rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*[\d.]+)?\s*\)/g, (match, rs, gs, bs) => {
@@ -223,7 +330,7 @@ export function sanitizeForImageModel(text: string): string {
     const g = Math.min(255, parseInt(gs, 10));
     const b = Math.min(255, parseInt(bs, 10));
     const name = rgbToColorName(r, g, b);
-    if (DEBUG) console.log(`[sanitize] "${match}" → "${name}"`);
+    if (DEBUG) console.log('[sanitize] Normalized an RGB color');
     return name;
   });
   return out;
@@ -233,8 +340,9 @@ export async function generateImages(
   prompt: string,
   brandSlang: string | undefined,
   n: number,
-  size: ImageSize
-): Promise<{ images: GeneratedImage[]; partialErrors: PartialError[] }> {
+  size: ImageSize,
+  transparentBackground = false
+): Promise<{ images: GeneratedImage[]; partialErrors: PartialError[]; failureStatus: number }> {
   const cleanPrompt = sanitizeForImageModel(prompt);
   const cleanBrand = brandSlang ? sanitizeForImageModel(brandSlang) : '';
   const fullPrompt = cleanBrand.length > 0
@@ -244,18 +352,21 @@ export async function generateImages(
   console.log(`[imageGen] → n=${n} size=${size} promptLen=${fullPrompt.length}`);
 
   const results = await Promise.allSettled(
-    Array.from({ length: n }, () => generateOne(fullPrompt, size))
+    Array.from({ length: n }, () => generateOne(fullPrompt, size, transparentBackground))
   );
 
   const images: GeneratedImage[] = [];
   const partialErrors: PartialError[] = [];
+  const statuses = new Set<number>();
   results.forEach((r, idx) => {
     if (r.status === 'fulfilled') images.push(r.value);
     else {
-      const m = toToastMessage(r.reason);
-      partialErrors.push({ index: idx, message: m.message, code: m.code });
+      const { status, ...error } = toToastMessage(r.reason);
+      statuses.add(status);
+      partialErrors.push({ index: idx, ...error });
     }
   });
 
-  return { images, partialErrors };
+  const [firstStatus] = statuses;
+  return { images, partialErrors, failureStatus: statuses.size === 1 ? firstStatus : 502 };
 }

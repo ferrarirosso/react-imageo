@@ -10,7 +10,7 @@ export async function health(
     jsonBody: {
       status: 'healthy',
       service: 'imageo-backend',
-      version: '0.1.0',
+      version: '0.5.2',
       timestamp: new Date().toISOString(),
     },
   };

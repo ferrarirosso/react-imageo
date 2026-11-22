@@ -1,9 +1,10 @@
 {
   "name": "imageo-backend",
-  "version": "0.2.0",
-  "description": "Azure Functions backend for imageo — MAI-Image-2.5-Flash image generation + GPT-5 mini page analysis",
+  "version": "0.5.2",
+  "description": "Azure Functions backend for imageo with MAI-Image-2.7-Flash image generation and GPT-6 Luna page analysis",
   "main": "dist/src/index.js",
   "scripts": {
+    "test": "npm run build && node --test test/*.test.cjs",
     "build": "tsc",
     "watch": "tsc -w",
     "clean": "rimraf dist",

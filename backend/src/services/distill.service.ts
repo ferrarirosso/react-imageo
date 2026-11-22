@@ -137,8 +137,7 @@ export async function distillScope(req: DistillScopeRequest): Promise<DistillSco
       { role: 'user', content: userPrompt },
     ],
     response_format: { type: 'json_object' },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    reasoning_effort: 'minimal' as any,
+    reasoning_effort: 'low',
   });
 
   const dt = Date.now() - t0;

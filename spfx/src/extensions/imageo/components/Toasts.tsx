@@ -61,6 +61,14 @@ export const Toasts: React.FC<IToastsProps> = ({ toasts, onDismiss }) => {
           ) : undefined}
         >
           {t.message}
+          {t.serviceResponse && (
+            <details style={{ marginTop: 6 }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 600 }}>{strings.ServiceResponseLabel}</summary>
+              <pre style={{ margin: '6px 0 0', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', userSelect: 'text' }}>
+                {JSON.stringify(t.serviceResponse, undefined, 2)}
+              </pre>
+            </details>
+          )}
         </MessageBar>
       ))}
     </Stack>

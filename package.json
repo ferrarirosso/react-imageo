@@ -1,8 +1,8 @@
 {
   "name": "imageo",
-  "version": "0.2.0",
+  "version": "0.5.6",
   "private": true,
-  "description": "SPFx 1.23 Application Customizer that turns SharePoint page context into brand-styled images with Microsoft Foundry MAI-Image-2.5-Flash.",
+  "description": "SPFx 1.24.1 Application Customizer that turns SharePoint page context into brand-styled images with Microsoft Foundry MAI-Image-2.7-Flash.",
   "author": "Nello D'Andrea",
   "license": "MIT",
   "repository": {
@@ -19,15 +19,16 @@
     "spfx-extension",
     "application-customizer",
     "azure-ai-foundry",
-    "mai-image-2.5-flash",
+    "mai-image-2.7-flash",
     "image-generation",
     "azure-functions",
     "easy-auth",
     "managed-identity"
   ],
   "scripts": {
-    "deploy": "node -e \"if(process.env.npm_config_dry_run==='true'){console.error('Use \\\"npm run deploy:dry-run\\\" — npm consumes --dry-run before npx sees it.');process.exit(2)}\" && npx -y github:ferrarirosso/spfx-foundry-deploy deploy --config ./spfx/deploy.config.json",
-    "deploy:dry-run": "npx -y github:ferrarirosso/spfx-foundry-deploy deploy --config ./spfx/deploy.config.json --dry-run",
-    "teardown": "npx -y github:ferrarirosso/spfx-foundry-deploy teardown --config ./spfx/deploy.config.json"
+    "test": "npm --prefix backend test && npm --prefix spfx test",
+    "deploy": "node -e \"if(process.env.npm_config_dry_run==='true'){console.error('Use \\\"npm run deploy:dry-run\\\" — npm consumes --dry-run before npx sees it.');process.exit(2)}\" && cd spfx && npx -y github:ferrarirosso/spfx-foundry-deploy#05f52b0ae6da1b10385a1e879da6eedc589dedc5 deploy --config ./deploy.config.local.json",
+    "deploy:dry-run": "cd spfx && npx -y github:ferrarirosso/spfx-foundry-deploy#05f52b0ae6da1b10385a1e879da6eedc589dedc5 deploy --config ./deploy.config.local.json --dry-run",
+    "teardown": "cd spfx && npx -y github:ferrarirosso/spfx-foundry-deploy#05f52b0ae6da1b10385a1e879da6eedc589dedc5 teardown --config ./deploy.config.local.json"
   }
 }

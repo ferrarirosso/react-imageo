@@ -15,6 +15,8 @@ declare const process: { env: { [key: string]: string | undefined } };
 export interface IImageoEndpoints {
   endpointAppId: string;
   endpointGenerate: string;
+  endpointRefine: string;
+  endpointSuggestInstruction: string;
   endpointAnalyze: string;
   endpointDistill: string;
 }
@@ -27,6 +29,8 @@ export function resolveEndpoints(
   return {
     endpointAppId: backendApiResource || '',
     endpointGenerate: `${base}/generate-image`,
+    endpointRefine: `${base}/refine-image`,
+    endpointSuggestInstruction: `${base}/suggest-edit-instruction`,
     endpointAnalyze: `${base}/analyze-page`,
     endpointDistill: `${base}/distill-scope`,
   };

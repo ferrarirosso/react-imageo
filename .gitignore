@@ -5,6 +5,7 @@ docs/
 # Deployment state
 .imageo-deploy.json
 .deploy-output.json
+spfx/deploy.config.local.json
 
 # Node
 node_modules/
@@ -23,6 +24,7 @@ spfx/dist/
 spfx/temp/
 spfx/release/
 spfx/sharepoint/solution/
+*.sppkg
 spfx/.heft/
 spfx/jest-output/
 

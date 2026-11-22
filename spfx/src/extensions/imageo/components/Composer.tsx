@@ -1,16 +1,17 @@
 import * as React from 'react';
 import {
   Stack, TextField, PrimaryButton, ActionButton,
-  Text, Toggle, Separator, Icon, ProgressIndicator,
+  Text, Toggle, Dropdown, Separator, Icon, ProgressIndicator,
 } from '@fluentui/react';
 import * as strings from 'ImageoApplicationCustomizerStrings';
-import { IDistillChips, IPageSection, IPalette } from '../models/IContracts';
+import { IDistillChips, IPageSection, IPalette, ImageSize } from '../models/IContracts';
 import { accent, bg, border, fg } from '../utils/designTokens';
 
 export interface IComposerState {
   prompt: string;
   brandSlang: string;
-  n: number;
+  size: ImageSize;
+  transparentBackground: boolean;
   selectedSectionIds: string[];
   analyzeOn: boolean;
   extracting: boolean;
@@ -29,6 +30,7 @@ export interface IComposerProps {
   onSaveBrandSlang: () => void;
   onGenerate: () => void;
   busy?: boolean;
+  refining?: boolean;
   palette?: IPalette;
 }
 
@@ -531,6 +533,22 @@ export const Composer: React.FC<IComposerProps> = (props) => {
         </ActionButton>
       )}
 
+      <Dropdown
+        label={strings.ImageSizeLabel}
+        selectedKey={state.size}
+        options={[
+          { key: '1024x1024', text: strings.SizeSquare },
+          { key: '2048x2048', text: strings.SizeHighRes },
+          { key: '2048x1152', text: strings.SizeBanner },
+        ]}
+        onChange={(_, option) => { if (option) onChange({ size: option.key as ImageSize }); }}
+      />
+      <Toggle
+        label={strings.TransparentBackground}
+        checked={state.transparentBackground}
+        onChange={(_, checked) => onChange({ transparentBackground: !!checked })}
+      />
+
       {busy && (
         <ProgressIndicator
           label={GENERATE_PHASES[generatePhase]}
@@ -541,7 +559,7 @@ export const Composer: React.FC<IComposerProps> = (props) => {
         <PrimaryButton
           text={busy ? strings.GeneratingCta : strings.GenerateButton}
           onClick={onGenerate}
-          disabled={!state.prompt.trim() || !!busy}
+          disabled={!state.prompt.trim() || !!busy || props.refining}
         />
       </Stack>
     </Stack>
