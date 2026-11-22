@@ -1,5 +1,5 @@
 /**
- * Page-analysis service using GPT-5 mini.
+ * Page analysis using the configured analyze deployment.
  *
  * One call, batched over all sections, JSON-mode response. Produces
  * for each section a short summary and a suggested image-generation prompt

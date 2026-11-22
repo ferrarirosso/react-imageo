@@ -1,25 +1,24 @@
 {
-  "$schema": "https://raw.githubusercontent.com/ferrarirosso/spfx-foundry-deploy/main/deploy.config.schema.json",
+  "$schema": "https://raw.githubusercontent.com/ferrarirosso/spfx-foundry-deploy/05f52b0ae6da1b10385a1e879da6eedc589dedc5/deploy.config.schema.json",
   "slug": "imageo",
   "profile": "multi-model",
-  "namePrefix": "imageo-dev",
   "location": "swedencentral",
   "backendPath": "../backend",
   "models": [
     {
-      "name": "gpt-5-mini",
-      "deploymentName": "imageo-dev-gpt5mini",
-      "version": "2025-08-07",
+      "name": "gpt-6-luna",
+      "deploymentName": "gpt-6-luna",
+      "version": "2026-09-22",
       "format": "OpenAI",
       "skuName": "GlobalStandard",
       "skuCapacity": 50,
-      "apiVersion": "2024-10-21",
+      "apiVersion": "v1",
       "$role": "analyze"
     },
     {
-      "name": "MAI-Image-2.5-Flash",
-      "deploymentName": "imageo-dev-mai25flash",
-      "version": "2026-06-02",
+      "name": "MAI-Image-2.7-Flash",
+      "deploymentName": "mai-image-2-7-flash",
+      "version": "2026-11-02",
       "format": "Microsoft",
       "skuName": "GlobalStandard",
       "skuCapacity": 2,

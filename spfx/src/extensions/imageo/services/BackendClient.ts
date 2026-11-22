@@ -4,6 +4,10 @@ import { logger } from '../utils/logger';
 import {
   IGenerateRequest,
   IGenerateResponse,
+  IRefineRequest,
+  IRefineResponse,
+  ISuggestInstructionRequest,
+  ISuggestInstructionResponse,
   IAnalyzeRequest,
   IAnalyzeResponse,
   IDistillRequest,
@@ -32,13 +36,29 @@ export class BackendClient {
     req: IGenerateRequest,
     signal?: AbortSignal
   ): Promise<IGenerateResponse> {
+    return this.post<IGenerateResponse>(this.endpoints.endpointGenerate, req, 'generate', signal);
+  }
+
+  public async refine(req: IRefineRequest, signal?: AbortSignal): Promise<IRefineResponse> {
+    return this.post<IRefineResponse>(this.endpoints.endpointRefine, req, 'refine', signal);
+  }
+
+  public suggestInstruction(req: ISuggestInstructionRequest, signal: AbortSignal): Promise<ISuggestInstructionResponse> {
+    return this.post<ISuggestInstructionResponse>(this.endpoints.endpointSuggestInstruction, req, 'suggest instruction', signal);
+  }
+
+  private async post<T>(
+    url: string, req: IGenerateRequest | IRefineRequest | ISuggestInstructionRequest, label: string, signal?: AbortSignal
+  ): Promise<T> {
     const client = await this.getClient();
-    const res = await client.post(this.endpoints.endpointGenerate, AadHttpClient.configurations.v1, {
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+    const res = await client.post(url, AadHttpClient.configurations.v1, {
       body: JSON.stringify(req),
+      signal,
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
     });
     if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-    return this.parseJson<IGenerateResponse>(res, 'generate');
+    return this.parseJson<T>(res, label);
   }
 
   public async analyze(req: IAnalyzeRequest): Promise<IAnalyzeResponse> {
@@ -69,7 +89,7 @@ export class BackendClient {
       }
       const code = (body as { error?: string; code?: string })?.code;
       const message = (body as { message?: string })?.message || `${label} request failed (${res.status})`;
-      logger.error(`${label} failed`, res.status, body);
+      logger.error(`${label} failed`, res.status);
       throw new BackendError(message, res.status, code, body);
     }
     return (await res.json()) as T;

@@ -1,12 +1,13 @@
-// MAI caps total pixels at 1,056,768, requires ≥768 per side, and snaps each
-// side down to a multiple of 16 — hence 1360x768, not 1366x768 or 1792x1024.
-export type ImageSize = '1024x1024' | '1360x768' | '768x1360';
+// Imageo supports square, landscape and portrait output.
+export const IMAGE_SIZES = ['1024x1024', '1360x768', '768x1360', '2048x1152', '2048x2048'] as const;
+export type ImageSize = typeof IMAGE_SIZES[number];
 
 export interface GenerateImageRequest {
   prompt: string;
   brandSlang?: string;
   n?: number;
   size?: ImageSize;
+  transparentBackground?: boolean;
 }
 
 export interface GeneratedImage {
@@ -19,6 +20,16 @@ export interface PartialError {
   index: number;
   message: string;
   code?: string;
+  serviceResponse?: ImageServiceResponse;
+}
+
+export interface ImageServiceResponse {
+  httpStatus: number;
+  providerCode?: string;
+  stage?: 'input' | 'output';
+  category?: string;
+  message?: string;
+  requestId?: string;
 }
 
 export interface GenerateImageResponse {
@@ -91,4 +102,14 @@ export interface DistillScopeResponse {
   essence: string;
   suggestedPrompt: string;
   chips: DistillChipBag;
+}
+
+export interface SuggestEditInstructionRequest {
+  brief: string;
+  actions?: string[];
+  pageBrief?: string;
+}
+
+export interface SuggestEditInstructionResponse {
+  suggestion: string;
 }

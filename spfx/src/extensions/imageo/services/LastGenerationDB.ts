@@ -1,4 +1,5 @@
 import { logger } from '../utils/logger';
+import { IGenerateRequest } from '../models/IContracts';
 
 const DB_NAME = 'imageo';
 const DB_VERSION = 1;
@@ -8,6 +9,9 @@ const TTL_MINUTES = 15;
 export interface ILastGeneration {
   blob: Blob;
   prompt: string;
+  model?: string;
+  request?: IGenerateRequest;
+  editInstruction?: string;
   essence?: string;
   chips?: { subject: string[]; style: string[]; mood: string[] };
   selectedSectionIds?: string[];
@@ -90,6 +94,9 @@ export async function loadLastGeneration(
       return {
         blob: record.blob,
         prompt: record.prompt,
+        model: record.model,
+        request: record.request,
+        editInstruction: record.editInstruction,
         essence: record.essence,
         chips: record.chips,
         selectedSectionIds: record.selectedSectionIds,

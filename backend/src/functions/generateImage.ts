@@ -3,7 +3,6 @@ import { getUserContext, requireAuth } from '../middleware/auth';
 import {
   validateGenerateRequest,
   validationErrorResponse,
-  sanitizedErrorResponse,
   ValidationError,
 } from '../middleware/validation';
 import { generateImages } from '../services/imageGen.service';
@@ -17,27 +16,44 @@ export async function generateImage(
   const authFail = requireAuth(user);
   if (authFail) return authFail;
 
+  let body: unknown;
   try {
-    const body = await request.json();
+    body = await request.json();
+  } catch {
+    return validationErrorResponse(new ValidationError('Request body must be valid JSON'));
+  }
+
+  try {
     const parsed = validateGenerateRequest(body);
 
     context.log(
-      `[generateImage] user=${user.userPrincipalName || 'anon'} n=${parsed.n} ` +
+      `[generateImage] n=${parsed.n} ` +
       `size=${parsed.size} promptLen=${parsed.prompt.length}`
     );
 
-    const { images, partialErrors } = await generateImages(
+    const { images, partialErrors, failureStatus } = await generateImages(
       parsed.prompt,
       parsed.brandSlang,
       parsed.n as number,
-      parsed.size as ImageSize
+      parsed.size as ImageSize,
+      parsed.transparentBackground
     );
 
     if (images.length === 0) {
+      const [first] = partialErrors;
+      const sameCause = first && partialErrors.every(error => error.code === first.code);
+      // Only attach a single service response to the batch when it applies to
+      // every failure, including the request ID if Foundry supplied one.
+      const firstResponse = first?.serviceResponse;
+      const sameResponse = sameCause && firstResponse && partialErrors.every(
+        error => JSON.stringify(error.serviceResponse) === JSON.stringify(firstResponse)
+      );
       return {
-        status: 502,
+        status: failureStatus,
         jsonBody: {
           error: 'All generations failed',
+          ...(sameCause ? { code: first.code, message: first.message } : {}),
+          ...(sameResponse ? { serviceResponse: firstResponse } : {}),
           partialErrors,
         },
       };
@@ -54,8 +70,8 @@ export async function generateImage(
     if (err instanceof ValidationError) {
       return validationErrorResponse(err);
     }
-    context.error('[generateImage] error', err);
-    return sanitizedErrorResponse(err);
+    context.error('[generateImage] Unexpected generation error');
+    return { status: 500, jsonBody: { error: 'Image generation failed' } };
   }
 }
 

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import * as ReactDom from 'react-dom';
+import { createRoot, type Root } from 'react-dom/client';
 import { Log } from '@microsoft/sp-core-library';
 import {
   BaseApplicationCustomizer,
@@ -7,7 +7,7 @@ import {
   PlaceholderName,
 } from '@microsoft/sp-application-base';
 import { Fab } from './components/Fab';
-import { shouldShowFab, onSpaNavigate } from './utils/pageGate';
+import { shouldShowFab } from './utils/pageGate';
 import { logger } from './utils/logger';
 import { endpointsFromEnv, endpointsConfigured } from './utils/env';
 
@@ -20,50 +20,63 @@ export interface IImageoApplicationCustomizerProperties {
 export default class ImageoApplicationCustomizer
   extends BaseApplicationCustomizer<IImageoApplicationCustomizerProperties> {
 
-  private bottomPlaceholder: PlaceholderContent | undefined;
-  private unsubscribeNav: (() => void) | undefined;
+  private placeholder: PlaceholderContent | undefined;
+  private root: Root | undefined;
+  private pageRevision = 0;
 
   protected onInit(): Promise<void> {
     Log.info(LOG_SOURCE, 'imageo activated');
 
     this.context.placeholderProvider.changedEvent.add(this, this.renderRoot);
+    this.context.application.navigatedEvent.add(this, this.onNavigated);
     this.renderRoot();
-
-    this.unsubscribeNav = onSpaNavigate(() => this.renderRoot());
 
     return Promise.resolve();
   }
 
-  // The render/unmount pair is split across methods (render in renderRoot, unmount
-  // here and in the page-gate hide path), which the rushstack lint heuristic can't
-  // see. React 17 (the version SPFx 1.23 ships) only offers ReactDom.render.
   protected onDispose(): void {
-    if (this.unsubscribeNav) this.unsubscribeNav();
-    if (this.bottomPlaceholder?.domElement) {
-      try {
-        // eslint-disable-next-line @rushstack/pair-react-dom-render-unmount
-        ReactDom.unmountComponentAtNode(this.bottomPlaceholder.domElement);
-      } catch (err) {
-        logger.warn('unmount failed', err);
-      }
-    }
+    this.context.placeholderProvider.changedEvent.remove(this, this.renderRoot);
+    this.context.application.navigatedEvent.remove(this, this.onNavigated);
+    this.placeholder?.dispose();
   }
 
-  private renderRoot = (): void => {
-    if (!this.bottomPlaceholder) {
-      this.bottomPlaceholder = this.context.placeholderProvider.tryCreateContent(
-        PlaceholderName.Bottom,
-        { onDispose: () => { /* noop */ } }
-      );
-    }
-    const dom = this.bottomPlaceholder?.domElement;
-    if (!dom) return;
+  private onNavigated = (): void => {
+    this.pageRevision++;
+    this.renderRoot();
+  };
 
+  private unmountRoot(): void {
+    const root = this.root;
+    this.root = undefined;
+    root?.unmount();
+  }
+
+  private onPlaceholderDisposed = (content: PlaceholderContent): void => {
+    if (content === this.placeholder) {
+      this.placeholder = undefined;
+      this.unmountRoot();
+    }
+  };
+
+  private renderRoot = (): void => {
     if (!shouldShowFab(this.context)) {
-      // eslint-disable-next-line @rushstack/pair-react-dom-render-unmount
-      try { ReactDom.unmountComponentAtNode(dom); } catch { /* noop */ }
+      this.unmountRoot();
       return;
     }
+
+    if (!this.placeholder?.isVisible) {
+      this.placeholder?.dispose();
+      for (const name of [PlaceholderName.Bottom, PlaceholderName.Top]) {
+        const content = this.context.placeholderProvider.tryCreateContent(name, { onDispose: this.onPlaceholderDisposed });
+        if (content?.isVisible) {
+          this.placeholder = content;
+          break;
+        }
+        content?.dispose();
+      }
+    }
+    const dom = this.placeholder?.domElement;
+    if (!dom) return;
 
     const endpoints = endpointsFromEnv();
     if (!endpointsConfigured(endpoints)) {
@@ -73,8 +86,8 @@ export default class ImageoApplicationCustomizer
       );
     }
 
-    const el = React.createElement(Fab, { ctx: this.context, endpoints });
-    // eslint-disable-next-line @rushstack/pair-react-dom-render-unmount
-    ReactDom.render(el, dom);
+    const el = React.createElement(Fab, { key: this.pageRevision, ctx: this.context, endpoints });
+    this.root ??= createRoot(dom);
+    this.root.render(el);
   };
 }

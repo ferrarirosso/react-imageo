@@ -2,8 +2,10 @@
   "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
   "solution": {
     "name": "imageo-client-side-solution",
+    "title": "imageo",
     "id": "9f7e2a10-ef11-4c8d-bb3a-61a3e2c8d901",
-    "version": "1.1.0.0",
+    "version": "1.4.1.5",
+    "iconPath": "images/imageo-catalog.png",
     "includeClientSideAssets": true,
     "skipFeatureDeployment": true,
     "isDomainIsolated": false,
@@ -17,10 +19,10 @@
     },
     "metadata": {
       "shortDescription": {
-        "default": "imageo — on-page AI image generation for SharePoint"
+        "default": "Create and edit images on a SharePoint page with imageo."
       },
       "longDescription": {
-        "default": "Application Customizer that generates corporate-branded images on SharePoint modern pages via Microsoft Foundry MAI-Image-2.5-Flash."
+        "default": "Generate an illustration from a prompt or open a picture from a SharePoint library. Select an object, change its colour or remove it with Microsoft Foundry. Save the result as a new PNG in Site Assets."
       },
       "screenshotPaths": [],
       "videoUrl": "",

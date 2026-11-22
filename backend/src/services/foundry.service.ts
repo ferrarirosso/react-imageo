@@ -3,11 +3,10 @@
  * Production: Managed Identity via DefaultAzureCredential.
  * Local dev: API key fallback.
  *
- * Two client variants — one per api-version — because image and chat
- * endpoints evolve independently on Azure OpenAI / AI Foundry.
+ * Chat uses Azure OpenAI v1. Explicit dated API versions use the deployment URL.
  */
 
-import { AzureOpenAI } from 'openai';
+import OpenAI, { AzureOpenAI } from 'openai';
 import { DefaultAzureCredential, getBearerTokenProvider } from '@azure/identity';
 
 const AZURE_OPENAI_SCOPE = 'https://cognitiveservices.azure.com/.default';
@@ -24,15 +23,9 @@ function getEndpoint(): string {
   return endpoint.replace(/\/+$/, '');
 }
 
-function buildClient(apiVersion: string): AzureOpenAI {
-  const endpoint = getEndpoint();
-
+function getCredential(scope: string): string | (() => Promise<string>) {
   if (isRunningInAzure()) {
-    const azureADTokenProvider = getBearerTokenProvider(
-      new DefaultAzureCredential(),
-      AZURE_OPENAI_SCOPE
-    );
-    return new AzureOpenAI({ endpoint, apiVersion, azureADTokenProvider });
+    return getBearerTokenProvider(new DefaultAzureCredential(), scope);
   }
 
   const apiKey = process.env.AZURE_OPENAI_API_KEY;
@@ -41,21 +34,32 @@ function buildClient(apiVersion: string): AzureOpenAI {
       'AZURE_OPENAI_API_KEY required for local dev (run `npm run setup` at repo root).'
     );
   }
-  return new AzureOpenAI({ endpoint, apiVersion, apiKey });
+  return apiKey;
+}
+
+function buildClient(apiVersion: string): AzureOpenAI {
+  const endpoint = getEndpoint();
+  const credential = getCredential(AZURE_OPENAI_SCOPE);
+  return typeof credential === 'string'
+    ? new AzureOpenAI({ endpoint, apiVersion, apiKey: credential })
+    : new AzureOpenAI({ endpoint, apiVersion, azureADTokenProvider: credential });
 }
 
 export function getImageClient(): AzureOpenAI {
   return buildClient(process.env.AZURE_OPENAI_API_VERSION_IMAGE || '2025-04-01-preview');
 }
 
-export function getChatClient(): AzureOpenAI {
-  // Role "analyze" in deploy.config.json → AZURE_OPENAI_API_VERSION_ANALYZE.
-  // Fall back to the legacy _CHAT name for older local.settings.json files.
-  return buildClient(
-    process.env.AZURE_OPENAI_API_VERSION_ANALYZE ||
-    process.env.AZURE_OPENAI_API_VERSION_CHAT ||
-    '2024-10-21'
-  );
+export function getChatClient(): OpenAI {
+  const apiVersion = process.env.AZURE_OPENAI_API_VERSION_ANALYZE || process.env.AZURE_OPENAI_API_VERSION_CHAT;
+  if (apiVersion && apiVersion !== 'v1') return buildClient(apiVersion);
+
+  // The deployer returns the Cognitive Services resource URL. Azure OpenAI v1
+  // uses the Foundry services host and reads the deployment name from the body.
+  const endpoint = getEndpoint().replace(/\.cognitiveservices\.azure\.com$/i, '.services.ai.azure.com');
+  return new OpenAI({
+    baseURL: `${endpoint}/openai/v1`,
+    apiKey: getCredential('https://ai.azure.com/.default'),
+  });
 }
 
 export function getImageDeployment(): string {
